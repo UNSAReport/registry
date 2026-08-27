@@ -7,6 +7,8 @@ const sql = postgres(config.databaseUrl, { max: 1 });
 const db = drizzle(sql);
 
 console.log('Running registry database migrations...');
-await migrate(db, { migrationsFolder: './src/db/migrations' });
+await migrate(db, {
+  migrationsFolder: process.env.MIGRATIONS_DIR || './src/db/migrations',
+});
 console.log('Registry database migrations completed successfully.');
 await sql.end();

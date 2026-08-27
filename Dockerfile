@@ -10,7 +10,7 @@ FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock tsconfig.json drizzle.config.ts ./
 COPY src ./src
-RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts
+RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migrate.ts
 
 FROM base AS production-deps
 COPY package.json bun.lock ./
@@ -25,9 +25,12 @@ COPY package.json ./
 
 COPY src/db/migrations ./src/db/migrations
 COPY drizzle.config.ts ./
+COPY docker/docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh
 RUN chown -R bun:bun /app
 USER bun
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["bun", "./dist/index.js"]
