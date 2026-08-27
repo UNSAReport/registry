@@ -4,6 +4,14 @@ import type { Manifest } from '@/types';
 
 const NAME_REGEX = /^[a-z0-9]+([._-][a-z0-9]+)*$/;
 
+/**
+ * Validates and normalizes raw package manifest data against expected schema rules and optionally verifies uploaded file paths.
+ *
+ * @param rawManifest - Raw JSON object payload representing the package manifest.
+ * @param uploadedFilePaths - Optional list of relative file paths attached to the upload request.
+ * @returns Validated and sanitized Manifest object.
+ * @throws ValidationError if any field fails structural, formatting, or semver validation rules.
+ */
 export function validateManifest(
   rawManifest: unknown,
   uploadedFilePaths?: string[],
@@ -14,7 +22,6 @@ export function validateManifest(
 
   const manifest = rawManifest as Partial<Manifest>;
 
-  // 1. name validation
   if (!manifest.name || typeof manifest.name !== 'string') {
     throw new ValidationError('Manifest field "name" is required', {
       field: 'name',
@@ -36,7 +43,6 @@ export function validateManifest(
     );
   }
 
-  // 2. version validation
   if (!manifest.version || typeof manifest.version !== 'string') {
     throw new ValidationError('Manifest field "version" is required', {
       field: 'version',
@@ -50,7 +56,6 @@ export function validateManifest(
     });
   }
 
-  // 3. displayName validation
   let displayName = manifest.displayName;
   if (displayName !== undefined && displayName !== null) {
     if (typeof displayName !== 'string') {
@@ -68,7 +73,6 @@ export function validateManifest(
     }
   }
 
-  // 4. description validation
   let description = manifest.description;
   if (description !== undefined && description !== null) {
     if (typeof description !== 'string') {
@@ -86,7 +90,6 @@ export function validateManifest(
     }
   }
 
-  // 5. files validation
   if (!Array.isArray(manifest.files) || manifest.files.length === 0) {
     throw new ValidationError(
       'Manifest field "files" must be a non-empty array',
@@ -106,7 +109,6 @@ export function validateManifest(
     files.push(cleanPath);
   }
 
-  // 6. entry validation
   let entry = manifest.entry;
   if (entry !== undefined && entry !== null) {
     if (typeof entry !== 'string') {
@@ -123,7 +125,6 @@ export function validateManifest(
     }
   }
 
-  // 7. tags validation
   let tags: string[] | undefined;
   if (manifest.tags !== undefined && manifest.tags !== null) {
     if (!Array.isArray(manifest.tags)) {
@@ -141,7 +142,6 @@ export function validateManifest(
     });
   }
 
-  // 8. dependencies validation
   let dependencies: Record<string, string> | undefined;
   if (manifest.dependencies !== undefined && manifest.dependencies !== null) {
     if (
@@ -165,7 +165,6 @@ export function validateManifest(
     }
   }
 
-  // 9. If uploaded file paths are provided, verify every manifest file is present
   if (uploadedFilePaths && uploadedFilePaths.length > 0) {
     for (const file of files) {
       if (!uploadedFilePaths.includes(file)) {

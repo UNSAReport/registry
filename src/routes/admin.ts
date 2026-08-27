@@ -13,10 +13,11 @@ import type { HonoEnv } from '@/types';
 
 const adminRouter = new Hono<HonoEnv>();
 
-// Protect all admin routes with auth + admin role
 adminRouter.use('*', requireAuth, requireRole('admin'));
 
-// GET /v1/admin/pending - List all pending package versions
+/**
+ * Route handler for listing all package versions with a status of pending.
+ */
 adminRouter.get('/pending', async (c) => {
   const pendingRows = await db
     .select({
@@ -38,7 +39,9 @@ adminRouter.get('/pending', async (c) => {
   return c.json({ pending: pendingRows });
 });
 
-// POST /v1/admin/packages/:name/:version/approve - Approve version
+/**
+ * Route handler for approving a pending package version and making it active in the registry.
+ */
 adminRouter.post('/packages/:name/:version/approve', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -75,7 +78,6 @@ adminRouter.post('/packages/:name/:version/approve', async (c) => {
   const ver = verList[0];
   const now = new Date();
 
-  // Update package version status
   await db
     .update(packageVersions)
     .set({
@@ -85,7 +87,6 @@ adminRouter.post('/packages/:name/:version/approve', async (c) => {
     })
     .where(eq(packageVersions.id, ver.id));
 
-  // Update package status and latestVersion
   await db
     .update(packages)
     .set({
@@ -100,7 +101,9 @@ adminRouter.post('/packages/:name/:version/approve', async (c) => {
   });
 });
 
-// POST /v1/admin/packages/:name/:version/reject - Reject version
+/**
+ * Route handler for rejecting a pending package version with an optional rejection reason.
+ */
 adminRouter.post('/packages/:name/:version/reject', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -108,9 +111,7 @@ adminRouter.post('/packages/:name/:version/reject', async (c) => {
   let body: Record<string, unknown> = {};
   try {
     body = (await c.req.json()) as Record<string, unknown>;
-  } catch {
-    // optional body
-  }
+  } catch {}
 
   const reason = (body.reason as string) || 'No reason provided';
 
@@ -146,7 +147,6 @@ adminRouter.post('/packages/:name/:version/reject', async (c) => {
   const ver = verList[0];
   const now = new Date();
 
-  // Update package version status
   await db
     .update(packageVersions)
     .set({
@@ -155,7 +155,6 @@ adminRouter.post('/packages/:name/:version/reject', async (c) => {
     })
     .where(eq(packageVersions.id, ver.id));
 
-  // Check if package has any approved versions remaining
   const approvedCount = await db
     .select({ id: packageVersions.id })
     .from(packageVersions)
@@ -183,13 +182,17 @@ adminRouter.post('/packages/:name/:version/reject', async (c) => {
   });
 });
 
-// GET /v1/admin/trusted - List all trusted users
+/**
+ * Route handler for listing all user IDs granted trusted publisher status.
+ */
 adminRouter.get('/trusted', async (c) => {
   const users = await db.select().from(trustedUsers);
   return c.json({ trustedUsers: users });
 });
 
-// POST /v1/admin/trusted - Grant trusted status
+/**
+ * Route handler for granting trusted publisher status to a target user.
+ */
 adminRouter.post('/trusted', async (c) => {
   const user = c.get('user');
   if (!user) {
@@ -239,7 +242,9 @@ adminRouter.post('/trusted', async (c) => {
   );
 });
 
-// DELETE /v1/admin/trusted/:userId - Revoke trusted status
+/**
+ * Route handler for revoking trusted publisher status from a target user by ID.
+ */
 adminRouter.delete('/trusted/:userId', async (c) => {
   const targetUserId = c.req.param('userId');
 

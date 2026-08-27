@@ -15,6 +15,12 @@ import {
 } from '@/middleware/error-handler';
 import type { ResolvedPackage } from '@/types';
 
+/**
+ * Fetches declared dependency names and version ranges for a given package version ID.
+ *
+ * @param versionId - Unique identifier of the package version.
+ * @returns Array of dependency records containing dependencyName and versionRange.
+ */
 async function getVersionDependencies(versionId: string) {
   return await db
     .select({
@@ -25,6 +31,13 @@ async function getVersionDependencies(versionId: string) {
     .where(eq(packageDependencies.versionId, versionId));
 }
 
+/**
+ * Traverses dependency trees of existing packages to detect circular dependency chains involving a newly uploaded package.
+ *
+ * @param uploadPackageName - Name of the package being uploaded.
+ * @param declaredDependencies - Key-value map of declared dependency names to SemVer ranges.
+ * @throws ValidationError if a circular dependency cycle is detected.
+ */
 export async function checkCircularDependencies(
   uploadPackageName: string,
   declaredDependencies: Record<string, string>,
@@ -77,6 +90,15 @@ export async function checkCircularDependencies(
   }
 }
 
+/**
+ * Resolves an initial set of package requirements and SemVer ranges into a flattened, conflict-free dependency resolution tree.
+ *
+ * @param initialPackages - Map of initial package names to requested SemVer range strings.
+ * @returns Array of resolved package metadata objects including presigned download URLs and file lists.
+ * @throws NotFoundError if a package or version cannot be found.
+ * @throws ConflictError if dependency ranges cannot be satisfied.
+ * @throws ValidationError if a circular dependency loop is encountered.
+ */
 export async function resolveDependencyTree(
   initialPackages: Record<string, string>,
 ): Promise<ResolvedPackage[]> {

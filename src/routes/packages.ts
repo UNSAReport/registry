@@ -32,7 +32,9 @@ import type { HonoEnv } from '@/types';
 
 const packagesRouter = new Hono<HonoEnv>();
 
-// GET /v1/packages - Search / list packages
+/**
+ * Route handler for searching and listing packages with optional search query, tag filtering, and pagination.
+ */
 packagesRouter.get('/', optionalAuth, async (c) => {
   const q = c.req.query('q')?.trim();
   const tagFilter = c.req.query('tag')?.trim();
@@ -48,7 +50,6 @@ packagesRouter.get('/', optionalAuth, async (c) => {
 
   const conditions = [];
 
-  // Status filtering: non-admins can only see approved packages unless viewing their own
   if (statusFilter === 'approved') {
     conditions.push(eq(packages.status, 'approved'));
   } else if (!isAdmin) {
@@ -63,7 +64,6 @@ packagesRouter.get('/', optionalAuth, async (c) => {
     conditions.push(eq(packages.status, statusFilter));
   }
 
-  // Search query (full text search on name and description)
   if (q) {
     conditions.push(
       sql`(
@@ -74,7 +74,6 @@ packagesRouter.get('/', optionalAuth, async (c) => {
     );
   }
 
-  // Tag filter
   if (tagFilter) {
     const matchingTag = await db
       .select({ id: tags.id })
@@ -108,7 +107,6 @@ packagesRouter.get('/', optionalAuth, async (c) => {
     .limit(limit)
     .offset(offset);
 
-  // Enhance each package with tags
   const packageList = await Promise.all(
     results.map(async (pkg) => {
       const tagRows = await db
@@ -132,7 +130,9 @@ packagesRouter.get('/', optionalAuth, async (c) => {
   });
 });
 
-// GET /v1/packages/:name - Get package metadata
+/**
+ * Route handler for fetching package metadata, associated tags, and available version strings.
+ */
 packagesRouter.get('/:name', async (c) => {
   const name = c.req.param('name').toLowerCase();
 
@@ -171,7 +171,9 @@ packagesRouter.get('/:name', async (c) => {
   });
 });
 
-// GET /v1/packages/:name/versions - List all versions
+/**
+ * Route handler for listing all registered version entries for a given package name.
+ */
 packagesRouter.get('/:name/versions', async (c) => {
   const name = c.req.param('name').toLowerCase();
 
@@ -205,7 +207,9 @@ packagesRouter.get('/:name/versions', async (c) => {
   });
 });
 
-// GET /v1/packages/:name/:version - Get specific version metadata
+/**
+ * Route handler for fetching detailed metadata, file list, and declared dependencies for a specific package version.
+ */
 packagesRouter.get('/:name/:version', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -278,7 +282,9 @@ packagesRouter.get('/:name/:version', async (c) => {
   });
 });
 
-// POST /v1/packages - Upload new package
+/**
+ * Route handler for publishing a new package version with multipart manifest and file payload.
+ */
 packagesRouter.post('/', requireAuth, async (c) => {
   const user = c.get('user');
   if (!user) {
@@ -305,14 +311,12 @@ packagesRouter.post('/', requireAuth, async (c) => {
     });
   }
 
-  // Extract file uploads from form data
   const fileEntries: { path: string; buffer: Buffer; content: Buffer }[] = [];
   const uploadedFilePaths: string[] = [];
 
   for (const [key, value] of Object.entries(formData)) {
     if (key === 'manifest') continue;
 
-    // Normalize path (handle files attached with key or file.name)
     if (value instanceof File) {
       const arrayBuffer = await value.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
@@ -334,7 +338,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
 
   const manifest = validateManifest(rawManifest, uploadedFilePaths);
 
-  // Check package ownership if package exists
   const existingPkg = await db
     .select()
     .from(packages)
@@ -351,7 +354,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
     }
     packageId = existingPkg[0].id;
 
-    // Check version uniqueness
     const existingVer = await db
       .select({ id: packageVersions.id })
       .from(packageVersions)
@@ -372,7 +374,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
     packageId = crypto.randomUUID();
   }
 
-  // Validate declared dependencies exist in registry
   if (manifest.dependencies) {
     for (const depName of Object.keys(manifest.dependencies)) {
       const depPkg = await db
@@ -389,11 +390,9 @@ packagesRouter.post('/', requireAuth, async (c) => {
       }
     }
 
-    // Check circular dependencies
     await checkCircularDependencies(manifest.name, manifest.dependencies);
   }
 
-  // Validate tags if provided
   const resolvedTagIds: string[] = [];
   if (manifest.tags) {
     for (const tagName of manifest.tags) {
@@ -412,7 +411,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
     }
   }
 
-  // Determine approval status
   const isAdmin = user.roles.includes('admin');
   const isTrusted = await db
     .select({ userId: trustedUsers.userId })
@@ -423,7 +421,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
   const isApproved = isAdmin || isTrusted.length > 0;
   const initialStatus = isApproved ? 'approved' : 'pending';
 
-  // If pending, check max pending packages limit
   if (initialStatus === 'pending') {
     const userPendingVersions = await db
       .select({ id: packageVersions.id })
@@ -447,7 +444,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
   const s3Prefix = `packages/${packageId}/${manifest.version}/`;
   const archiveS3Key = `${s3Prefix}archive.zip`;
 
-  // Upload individual files to S3
   const fileRecords: {
     id: string;
     versionId: string;
@@ -473,10 +469,8 @@ packagesRouter.post('/', requireAuth, async (c) => {
     });
   }
 
-  // Upload zip archive
   await buildAndUploadZipArchive(archiveS3Key, fileEntries);
 
-  // Insert or update package in DB
   const now = new Date();
   if (existingPkg.length === 0) {
     await db.insert(packages).values({
@@ -505,7 +499,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
       .where(eq(packages.id, packageId));
   }
 
-  // Insert package version
   await db.insert(packageVersions).values({
     id: versionId,
     packageId,
@@ -519,12 +512,10 @@ packagesRouter.post('/', requireAuth, async (c) => {
     approvedAt: initialStatus === 'approved' ? now : null,
   });
 
-  // Insert package files
   if (fileRecords.length > 0) {
     await db.insert(packageFiles).values(fileRecords);
   }
 
-  // Insert package dependencies
   if (manifest.dependencies) {
     const depRecords = Object.entries(manifest.dependencies).map(
       ([depName, range]) => ({
@@ -539,7 +530,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
     }
   }
 
-  // Link tags
   if (resolvedTagIds.length > 0) {
     for (const tagId of resolvedTagIds) {
       await db
@@ -561,7 +551,9 @@ packagesRouter.post('/', requireAuth, async (c) => {
   );
 });
 
-// PUT /v1/packages/:name/:version - Update pending version
+/**
+ * Route handler for updating details of a pending package version owned by the user.
+ */
 packagesRouter.put('/:name/:version', requireAuth, async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -623,7 +615,9 @@ packagesRouter.put('/:name/:version', requireAuth, async (c) => {
   return c.json({ message: 'Version updated successfully' });
 });
 
-// DELETE /v1/packages/:name/:version - Delete a version (Admin auth)
+/**
+ * Route handler for deleting a package version and its associated S3 files (requires admin authentication).
+ */
 packagesRouter.delete('/:name/:version', requireAuth, async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -665,7 +659,6 @@ packagesRouter.delete('/:name/:version', requireAuth, async (c) => {
 
   const ver = verList[0];
 
-  // Delete S3 files
   const fileRows = await db
     .select({ s3Key: packageFiles.s3Key })
     .from(packageFiles)
@@ -676,7 +669,6 @@ packagesRouter.delete('/:name/:version', requireAuth, async (c) => {
   }
   await deleteS3Object(ver.archiveS3Key);
 
-  // Delete DB row (cascades to files and dependencies)
   await db.delete(packageVersions).where(eq(packageVersions.id, ver.id));
 
   return c.json({ message: `Version '${version}' of '${name}' deleted` });

@@ -9,7 +9,9 @@ import type { DependencyResolveRequest, HonoEnv } from '@/types';
 
 const downloadRouter = new Hono<HonoEnv>();
 
-// GET /v1/packages/:name/:version/files - List files in version
+/**
+ * Route handler for listing all files and their metadata within a specific package version.
+ */
 downloadRouter.get('/:name/:version/files', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -57,7 +59,9 @@ downloadRouter.get('/:name/:version/files', async (c) => {
   });
 });
 
-// GET /v1/packages/:name/:version/files/* - Download a specific file
+/**
+ * Route handler for fetching or downloading a specific file within a package version using a presigned S3 URL.
+ */
 downloadRouter.get('/:name/:version/files/*', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -115,7 +119,6 @@ downloadRouter.get('/:name/:version/files/*', async (c) => {
 
   const presignedUrl = await getPresignedUrl(fileList[0].s3Key);
 
-  // Redirect or JSON presigned URL based on Accept header
   const accept = c.req.header('Accept') || '';
   if (accept.includes('application/json')) {
     return c.json({
@@ -127,7 +130,9 @@ downloadRouter.get('/:name/:version/files/*', async (c) => {
   return c.redirect(presignedUrl, 302);
 });
 
-// GET /v1/packages/:name/:version/archive - Download full archive
+/**
+ * Route handler for generating a presigned download URL for a full package version zip archive.
+ */
 downloadRouter.get('/:name/:version/archive', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
@@ -172,7 +177,9 @@ downloadRouter.get('/:name/:version/archive', async (c) => {
   });
 });
 
-// POST /v1/resolve - Resolve full dependency tree
+/**
+ * Route handler for resolving a complete tree of package dependencies given initial requirements and SemVer ranges.
+ */
 downloadRouter.post('/resolve', async (c) => {
   let body: DependencyResolveRequest;
   try {

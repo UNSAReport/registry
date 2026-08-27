@@ -4,6 +4,11 @@ import type { JWTPayload, UserContext } from '@/types';
 
 let jwksClient: ReturnType<typeof createRemoteJWKSet> | null = null;
 
+/**
+ * Initializes and caches the remote JSON Web Key Set (JWKS) client instance for IDP token verification.
+ *
+ * @returns Remote JWKS set client instance.
+ */
 function getJWKS() {
   if (!jwksClient) {
     jwksClient = createRemoteJWKSet(new URL(config.idpJwksUrl));
@@ -11,6 +16,13 @@ function getJWKS() {
   return jwksClient;
 }
 
+/**
+ * Verifies a JWT token using the configured Identity Provider's JWKS and issuer.
+ *
+ * @param token - Bearer JWT string to verify.
+ * @returns Decoded user context containing user ID, optional email, and assigned roles.
+ * @throws Error if JWT verification fails or subject claims are missing.
+ */
 export async function verifyJWT(token: string): Promise<UserContext> {
   try {
     const JWKS = getJWKS();

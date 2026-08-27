@@ -3,6 +3,13 @@ import { verifyJWT } from '@/lib/auth';
 import { ForbiddenError, UnauthorizedError } from '@/middleware/error-handler';
 import type { HonoEnv } from '@/types';
 
+/**
+ * Middleware handler that enforces authentication via Bearer JWT in the Authorization header.
+ * Sets the authenticated user context on Hono environment variables.
+ *
+ * @param c - Hono context object.
+ * @param next - Next middleware continuation callback.
+ */
 export const requireAuth: MiddlewareHandler<HonoEnv> = async (c, next) => {
   const authHeader = c.req.header('Authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -25,6 +32,13 @@ export const requireAuth: MiddlewareHandler<HonoEnv> = async (c, next) => {
   await next();
 };
 
+/**
+ * Middleware handler that optionally verifies a Bearer JWT if present in the Authorization header.
+ * Attaches user context if valid, otherwise continues without setting user context.
+ *
+ * @param c - Hono context object.
+ * @param next - Next middleware continuation callback.
+ */
 export const optionalAuth: MiddlewareHandler<HonoEnv> = async (c, next) => {
   const authHeader = c.req.header('Authorization');
   if (authHeader?.startsWith('Bearer ')) {
@@ -33,14 +47,18 @@ export const optionalAuth: MiddlewareHandler<HonoEnv> = async (c, next) => {
       try {
         const user = await verifyJWT(token);
         c.set('user', user);
-      } catch {
-        // Ignore invalid token in optional auth
-      }
+      } catch {}
     }
   }
   await next();
 };
 
+/**
+ * Middleware factory that creates a handler enforcing that the authenticated user possesses a specified role.
+ *
+ * @param role - Role required to access the endpoint.
+ * @returns Hono middleware handler function.
+ */
 export const requireRole = (role: string): MiddlewareHandler<HonoEnv> => {
   return async (c, next) => {
     const user = c.get('user');

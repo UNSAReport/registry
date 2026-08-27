@@ -12,7 +12,9 @@ import type { HonoEnv } from '@/types';
 
 const tagsRouter = new Hono<HonoEnv>();
 
-// GET /v1/tags - List all tags (grouped by parent)
+/**
+ * Route handler for listing all tags grouped by parent tag ID.
+ */
 tagsRouter.get('/', async (c) => {
   const allTags = await db.select().from(tags);
 
@@ -35,7 +37,9 @@ tagsRouter.get('/', async (c) => {
   return c.json({ tags: result });
 });
 
-// POST /v1/tags - Create tag (Admin auth)
+/**
+ * Route handler for creating a new tag (requires admin authentication).
+ */
 tagsRouter.post('/', requireAuth, requireRole('admin'), async (c) => {
   let body: Record<string, unknown>;
   try {
@@ -102,7 +106,9 @@ tagsRouter.post('/', requireAuth, requireRole('admin'), async (c) => {
   );
 });
 
-// DELETE /v1/tags/:id - Delete tag (Admin auth)
+/**
+ * Route handler for deleting an existing tag by ID (requires admin authentication).
+ */
 tagsRouter.delete('/:id', requireAuth, requireRole('admin'), async (c) => {
   const id = c.req.param('id');
 

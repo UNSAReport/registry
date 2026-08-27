@@ -5,9 +5,14 @@ describe('App API Routes', () => {
   it('GET /health returns health status', async () => {
     const res = await app.fetch(new Request('http://localhost/health'));
     expect(res.status).toBe(200);
-    const data = (await res.json()) as { status: string; service: string };
+    const data = (await res.json()) as {
+      status: string;
+      service: string;
+      endpoints: string[];
+    };
     expect(data.status).toBe('ok');
     expect(data.service).toBe('unsareport-registry');
+    expect(Array.isArray(data.endpoints)).toBe(true);
   });
 
   it('POST /v1/resolve returns 400 for empty body', async () => {
