@@ -5,7 +5,7 @@ export const config = {
   idpIssuer: process.env.IDP_ISSUER || 'https://auth.unsareport.org',
   idpJwksUrl:
     process.env.IDP_JWKS_URL ||
-    `${process.env.IDP_ISSUER || 'https://auth.unsareport.org'}/.well-known/jwks.json`,
+    `${process.env.IDP_ISSUER || 'https://auth.unsareport.org'}/v1/.well-known/jwks.json`,
   port: Number.parseInt(process.env.PORT || '3001', 10),
   allowedOrigins: (
     process.env.ALLOWED_ORIGINS || 'http://localhost:5173'
