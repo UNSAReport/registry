@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
+    "db:migrate": "bun run src/db/migrate.ts",
     "check": "bun run check:ts && bun run check:biome",
     "check:ts": "tsc --noEmit",
     "check:biome": "biome check .",

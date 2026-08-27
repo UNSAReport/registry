@@ -1,0 +1,78 @@
+name: unsareport-registry-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: registry-postgres
+    environment:
+      POSTGRES_USER: registry
+      POSTGRES_PASSWORD: registrypassword
+      POSTGRES_DB: registry_db
+    ports:
+      - "46002:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U registry -d registry_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: auth-postgres
+    environment:
+      POSTGRES_USER: idp
+      POSTGRES_PASSWORD: idppassword
+      POSTGRES_DB: idp_db
+    ports:
+      - "46003:5432"
+    volumes:
+      - pgdata-auth:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idp -d idp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: registry-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "46004:9000"
+      - "46005:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  auth:
+    image: ghcr.io/unsareport/auth:latest-dev
+    pull_policy: always
+    container_name: registry-auth
+    ports:
+      - "46001:3000"
+    environment:
+      DATABASE_URL: postgresql://idp:idppassword@postgres-auth:5432/idp_db
+      IDP_ISSUER: http://auth:3000
+      IDP_PORT: 3000
+      IDP_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3001
+      CLIENT_REDIRECT_URL: http://localhost:5173
+      ADMIN_API_KEY: admin-secret-key-12345
+      ACCESS_TOKEN_TTL: 900
+      REFRESH_TOKEN_TTL: 2592000
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  pgdata-auth:
+  miniodata:
