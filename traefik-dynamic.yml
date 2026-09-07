@@ -1,0 +1,23 @@
+http:
+  routers:
+    registry:
+      rule: "PathPrefix(`/api/registry`)"
+      entryPoints:
+        - web
+      priority: 10
+      middlewares:
+        - registry-strip
+      service: registry-service
+
+  middlewares:
+    registry-strip:
+      stripPrefix:
+        prefixes:
+          - "/api/registry"
+        forceSlash: false
+
+  services:
+    registry-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3001"
